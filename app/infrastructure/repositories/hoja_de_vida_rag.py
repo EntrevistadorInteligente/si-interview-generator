@@ -16,7 +16,7 @@ class HojaDeVidaMongoRepository(HojaDeVidaRepository):
     async def obtener_por_id(self, id_hoja_de_vida: str) -> HojaDeVidaDto:
         data = await collection.find_one({'_id': ObjectId(id_hoja_de_vida)})
         if data:
-            hoja_de_vida = HojaDeVidaDto(id_entrevista=data.get('id_entrevista'),
+            hoja_de_vida = HojaDeVidaDto(username=data.get('username'),
                                          hoja_de_vida_vect=data.get('hoja_de_vida_vect'))
             return hoja_de_vida
         else:

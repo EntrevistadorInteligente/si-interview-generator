@@ -1,12 +1,13 @@
 from fastapi import Depends, APIRouter
 
+from app.application.services.generar_feedback_service import GenerarFeedbackService
 from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.application.services.generar_entrevista_service import GenerarEntrevistaService
 from app.infrastructure.container import Container
 from dependency_injector.wiring import Provide, inject
 import json
 from app.infrastructure.schemas.hoja_de_vida_dto import (SolicitudGeneracionEntrevistaDto,
-                                                         ProcesoEntrevistaDto, EstadoProcesoEnum)
+                                                         ProcesoEntrevistaDto, EstadoProcesoEnum, PreguntasDto)
 
 router = APIRouter(
     prefix='/analizador2',
@@ -17,7 +18,7 @@ router = APIRouter(
 @router.get('/', response_model=str)
 @inject
 async def procesar_peticion_entrevista_message(
-        message,generar_entrevista_service: GenerarEntrevistaService =
+        message, generar_entrevista_service: GenerarEntrevistaService =
         Depends(Provide[Container.generar_entrevista_service]),
         kafka_producer_service: KafkaProducerService =
         Depends(Provide[Container.kafka_producer_service])):
@@ -38,9 +39,24 @@ async def procesar_peticion_entrevista_message(
     )
 
     await kafka_producer_service.send_message({
-        "proceso_entrevista": proceso_entrevista.dict(),
         "id_entrevista": id_entrevista,
-        "hoja_de_vida": hoja_de_vida_dto.dict()})
+        "preguntas": hoja_de_vida_dto}, 'preguntasListenerTopic')
+
+
+@router.get('/2', response_model=str)
+@inject
+async def procesar_peticion_feedback_message(
+        message, generar_feedback_service: GenerarFeedbackService =
+        Depends(Provide[Container.generar_feedback_service]),
+        kafka_producer_service: KafkaProducerService =
+        Depends(Provide[Container.kafka_producer_service])):
+
+    data = json.loads(message.value.decode('utf-8'))
+
+    hoja_de_vida_dto = await generar_feedback_service.ejecutar(PreguntasDto(**data))
+
+    await kafka_producer_service.send_message(hoja_de_vida_dto.dict(), 'feedbackListenerTopic')
+
 
 
 

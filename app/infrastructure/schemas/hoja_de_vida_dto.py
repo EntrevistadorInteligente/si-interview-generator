@@ -4,7 +4,7 @@ from enum import Enum
 
 
 class HojaDeVidaDto(BaseModel):
-    id_entrevista: Optional[str] = None
+    username: Optional[str] = None
     hoja_de_vida_vect: Optional[list[str]] = None
 
 
@@ -39,6 +39,24 @@ class MensajeAnalizadorDto(BaseModel):
     proceso_entrevista: ProcesoEntrevistaDto
     id_entrevista: Optional[str] = None,
     hoja_de_vida: HojaDeVidaDto
+
+
+class EntrevistaDto(BaseModel):
+    id_entrevista: Optional[str] = None
+    preguntas: List[str] = []
+
+
+class EntrevistaFeedbackDto(BaseModel):
+    pregunta: Optional[str] = None
+    respuesta: Optional[str] = None
+    feedback: Optional[str] = None
+
+
+class PreguntasDto(BaseModel):
+    id_entrevista: Optional[str] = None
+    proceso_entrevista: List[EntrevistaFeedbackDto] = []
+
+
 
 
 

@@ -1,7 +1,10 @@
 from dependency_injector import containers, providers
+
+from app.application.services.generar_feedback_service import GenerarFeedbackService
 from app.application.services.obtener_contextos_rags_service import ObtenerContextosRags
 from app.application.services.generar_modelo_contexto_pdf import GenerarModeloContextoPdf
 from app.infrastructure.jms.kafka_consumer_service import KafkaConsumerService
+from app.infrastructure.jms.kafka_feedback_consumer_service import KafkaFeedbackConsumerService
 from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.application.services.generar_entrevista_service import GenerarEntrevistaService
 from app.infrastructure.handlers import Handlers
@@ -36,18 +39,27 @@ class Container(containers.DeclarativeContainer):
         generar_modelo_contexto_pdf=generar_modelo_contexto_pdf
     )
 
+    generar_feedback_service = providers.Factory(
+        GenerarFeedbackService,
+        obtener_contextos_rags_service=obtener_contextos_rags_service,
+        generar_modelo_contexto_pdf=generar_modelo_contexto_pdf
+    )
+
     procesar_peticion_entrevista_message = providers.Factory(
         # Pasa las dependencias requeridas por procesar_peticion_entrevista_message aquí, como:
         generar_entrevista_service=generar_entrevista_service
     )
 
     kafka_consumer_service = providers.Singleton(
-        KafkaConsumerService,
-        topic='generadorPublisherTopic',
+        KafkaConsumerService
+    )
+
+    kafka_feedback_consumer_service = providers.Singleton(
+        KafkaFeedbackConsumerService,
+        topic='feedbackPublisherTopic'
     )
 
     kafka_producer_service = providers.Singleton(
         KafkaProducerService,
-        bootstrap_servers='localhost:9092',
-        topic='hojaDeVidaListenerTopic',
+        bootstrap_servers='localhost:9092'
     )
