@@ -17,11 +17,12 @@ class InformacionEmpresaMongoRepository(InformacionEmpresaRepository):
     async def obtener_por_id(self, id_informacion_empresa: str) -> InformacionEmpresaDto:
         data = await collection.find_one({'_id': ObjectId(id_informacion_empresa)})
         if data:
-            hoja_de_vida = InformacionEmpresaDto(empresa=data.get('empresa'),
+            hoja_de_vida = InformacionEmpresaDto(descripcion_vacante=data.get('descripcion_vacante'),
+                                                 empresa=data.get('empresa'),
                                                  perfil=data.get('perfil'),
                                                  seniority=data.get('seniority'),
                                                  pais=data.get('pais'),
                                                  informacion_empresa_vect=data.get('informacion_empresa_vect'))
             return hoja_de_vida
         else:
-            raise Exception(f'HojaDeVida with id {id_informacion_empresa} not found')
+            raise Exception(f'InformacionEmpresa with id {id_informacion_empresa} not found')

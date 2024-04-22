@@ -5,6 +5,6 @@ from app.infrastructure.schemas.hoja_de_vida_dto import HojaDeVidaDto
 class HojaDeVidaRepository(ABC):
 
     @abstractmethod
-    def obtener_por_id(self, id_hoja_de_vida: str) -> HojaDeVidaDto:
+    async def obtener_por_id(self, id_hoja_de_vida: str) -> HojaDeVidaDto:
         raise NotImplemented
 

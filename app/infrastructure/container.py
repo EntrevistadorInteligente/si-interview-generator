@@ -11,6 +11,7 @@ from app.infrastructure.handlers import Handlers
 from app.infrastructure.jms import Jms
 from app.infrastructure.repositories.hoja_de_vida_rag import HojaDeVidaMongoRepository
 from app.infrastructure.repositories.informacion_empresa_rag import InformacionEmpresaMongoRepository
+from app.infrastructure.repositories.preparador_entrevista_rag import PreparacionEntrevistaMongoRepository
 
 
 class Container(containers.DeclarativeContainer):
@@ -18,12 +19,17 @@ class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(modules=Handlers.modules())
     wiring_config2 = containers.WiringConfiguration(modules=Jms.modules())
 
-    # Dependencias
-    generar_modelo_contexto_pdf = providers.Factory(GenerarModeloContextoPdf)
+
 
     # Repositories
     hoja_de_vida_repository = providers.Singleton(HojaDeVidaMongoRepository)
     informacion_empresa_repository = providers.Singleton(InformacionEmpresaMongoRepository)
+    preparacion_entrevista_repository = providers.Singleton(PreparacionEntrevistaMongoRepository)
+
+    # Dependencias
+    generar_modelo_contexto_pdf = providers.Factory(
+        GenerarModeloContextoPdf,
+        preparacion_entrevista_repository=preparacion_entrevista_repository)
 
     # Servicio que depende de las anteriores
     obtener_contextos_rags_service = providers.Factory(
@@ -36,13 +42,17 @@ class Container(containers.DeclarativeContainer):
     generar_entrevista_service = providers.Factory(
         GenerarEntrevistaService,
         obtener_contextos_rags_service=obtener_contextos_rags_service,
-        generar_modelo_contexto_pdf=generar_modelo_contexto_pdf
+        generar_modelo_contexto_pdf=generar_modelo_contexto_pdf,
+        hoja_de_vida_repository=hoja_de_vida_repository,
+        informacion_empresa_repository=informacion_empresa_repository,
+        preparacion_entrevista_repository=preparacion_entrevista_repository
     )
 
     generar_feedback_service = providers.Factory(
         GenerarFeedbackService,
         obtener_contextos_rags_service=obtener_contextos_rags_service,
-        generar_modelo_contexto_pdf=generar_modelo_contexto_pdf
+        generar_modelo_contexto_pdf=generar_modelo_contexto_pdf,
+        preparacion_entrevista_repository=preparacion_entrevista_repository
     )
 
     procesar_peticion_entrevista_message = providers.Factory(

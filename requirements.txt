@@ -1,9 +1,6 @@
-
-langchain==0.0.184
 PyPDF2==3.0.1
 python-dotenv==1.0.0
 streamlit==1.18.1
-openai==0.27.6
 faiss-cpu==1.8.0
 altair==4
 tiktoken==0.6.0
@@ -21,3 +18,4 @@ pydantic~=1.10.14
 aiokafka~=0.10.0
 motor~=3.4.0
 pymongo~=4.6.3
+langchain~=0.1.16

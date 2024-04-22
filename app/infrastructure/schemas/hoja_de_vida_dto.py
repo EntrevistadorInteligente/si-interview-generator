@@ -9,11 +9,21 @@ class HojaDeVidaDto(BaseModel):
 
 
 class InformacionEmpresaDto(BaseModel):
+    descripcion_vacante: Optional[str] = None
     empresa: Optional[str] = None
     perfil: Optional[str] = None
     seniority: Optional[str] = None
     pais: Optional[str] = None
     informacion_empresa_vect: Optional[list[str]] = None
+
+
+class InformacionEmpresaSolicitudDto(BaseModel):
+    empresa: Optional[str] = None
+    perfil: Optional[str] = None
+    seniority: Optional[str] = None
+    pais: Optional[str] = None
+    descripcion_vacante: Optional[str] = None
+    id_informacion_empresa_rag: Optional[str] = None
 
 
 class SolicitudGeneracionEntrevistaDto(BaseModel):
