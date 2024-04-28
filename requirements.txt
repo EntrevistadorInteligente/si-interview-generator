@@ -6,7 +6,7 @@ altair==4
 tiktoken==0.6.0
 dependency-injector==4.41.0
 huggingface-hub==0.14.1
-python-multipart==0.0.5
+python-multipart==0.0.7
 fastapi~=0.109.0
 uvicorn==0.18.3
 pydantic~=1.10.14
