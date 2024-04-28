@@ -4,16 +4,10 @@ from langchain import hub
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.chains.retrieval import create_retrieval_chain
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.vectorstores import FAISS
 import dotenv
-from langchain_core.documents import Document
 
 from app.domain.repositories.preparador_entrevista import PreparacionEntrevistaRepository
 
@@ -23,14 +17,11 @@ class GenerarModeloContextoPdf:
     def __init__(self, preparacion_entrevista_repository: PreparacionEntrevistaRepository):
         self.preparacion_entrevista_repository = preparacion_entrevista_repository
 
-    def sin_memoria(self, text_chunks: list[str]) -> Any:
+    def ejecutar(self, text_chunks: list[str]) -> Any:
         dotenv.load_dotenv()
         # Crear vectorstore
         vectorstore = FAISS.from_texts(texts=text_chunks, embedding=OpenAIEmbeddings())
 
-        # Crear conversation chain
-        retriever = vectorstore.as_retriever()
-        prompt = hub.pull("rlm/rag-prompt")
         llm = ChatOpenAI()
 
         retriever = vectorstore.as_retriever()

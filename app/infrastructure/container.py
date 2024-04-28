@@ -4,7 +4,6 @@ from app.application.services.generar_feedback_service import GenerarFeedbackSer
 from app.application.services.obtener_contextos_rags_service import ObtenerContextosRags
 from app.application.services.generar_modelo_contexto_pdf import GenerarModeloContextoPdf
 from app.infrastructure.jms.kafka_consumer_service import KafkaConsumerService
-from app.infrastructure.jms.kafka_feedback_consumer_service import KafkaFeedbackConsumerService
 from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.application.services.generar_entrevista_service import GenerarEntrevistaService
 from app.infrastructure.handlers import Handlers
@@ -64,12 +63,6 @@ class Container(containers.DeclarativeContainer):
         KafkaConsumerService
     )
 
-    kafka_feedback_consumer_service = providers.Singleton(
-        KafkaFeedbackConsumerService,
-        topic='feedbackPublisherTopic'
-    )
-
     kafka_producer_service = providers.Singleton(
-        KafkaProducerService,
-        bootstrap_servers='localhost:9092'
+        KafkaProducerService
     )

@@ -22,7 +22,7 @@ class GenerarFeedbackService:
         memoria_entrevista = await self.preparacion_entrevista_repository.obtener_por_id(feedback.id_entrevista)
 
         # Reconstruir la conversación con memoria
-        conversation_chain = self.generar_modelo_contexto_pdf.sin_memoria(text_chunks=memoria_entrevista.contexto)
+        conversation_chain = self.generar_modelo_contexto_pdf.ejecutar(text_chunks=memoria_entrevista.contexto)
 
         # Formatear las preguntas y respuestas para el feedback
         feedback_prompt = (
@@ -71,7 +71,6 @@ class GenerarFeedbackService:
         # Generar la sección para cada respuesta del candidato
         for num, proceso in enumerate(feedback.proceso_entrevista, 1):
             feedback_prompt1 += (
-                f"Pregunta  {num}: {proceso.pregunta}\n"
                 f"Respuesta pregunta {num}: {proceso.respuesta}\n"
                 f"******\n"
                 "----------------------------------------\n\n"
@@ -91,15 +90,25 @@ class GenerarFeedbackService:
             AIMessage(content=memoria_entrevista.respuesta)
         ]
 
+        chat_history = [
+            HumanMessage(content=memoria_entrevista.pregunta),
+            AIMessage(content=memoria_entrevista.respuesta)
+        ]
+
         # Generar el feedback de la IA en un solo llamado
         feedback_response = conversation_chain.invoke({
             'chat_history': chat_history,
             "input": feedback_prompt1
         })
+
         # Procesar la respuesta de la IA y asignar el feedback
         # Aquí necesitarás una función que extraiga el feedback de la respuesta de la IA y lo asocie con cada pregunta.
         respuesta = feedback_response['answer']
 
+        chat_history = [
+            HumanMessage(content=feedback_prompt1),
+            AIMessage(content=respuesta)
+        ]
         if respuesta.lower() == "ALERTA SINSENTIDO".lower():
             feedback_valido = True
         else:
@@ -107,7 +116,6 @@ class GenerarFeedbackService:
 
         feedback.proceso_entrevista = await self.process_feedback(feedback_response['answer'],
                                                                   conversation_chain)
-
         return feedback
 
     async def process_feedback(self, feedback_text, conversation_chain):

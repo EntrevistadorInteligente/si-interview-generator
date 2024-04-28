@@ -1,7 +1,6 @@
 import asyncio
 from fastapi import FastAPI
 from app.infrastructure.jms.kafka_consumer_service import KafkaConsumerService
-from app.infrastructure.jms.kafka_feedback_consumer_service import KafkaFeedbackConsumerService
 from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.infrastructure.container import Container
 from app.infrastructure.handlers import Handlers
@@ -21,17 +20,15 @@ def create_app():
     async def shutdown_event():
         global kafka_producer_service
         if kafka_producer_service:
-            await kafka_producer_service.stop()
+            await kafka_producer_service.close()
 
     @fast_api.on_event("startup")
     async def startup_event():
         kafka_consumer_service = KafkaConsumerService('generadorPublisherTopic')
-        kafka_feedback_consumer_service = KafkaFeedbackConsumerService('feedbackPublisherTopic')
-        global kafka_producer_service
-        kafka_producer_service = KafkaProducerService('localhost:9092')
+        kafka_feedback_consumer_service = KafkaConsumerService('feedbackPublisherTopic')
 
-        # Iniciar el servicio del productor Kafka.
-        await kafka_producer_service.start()
+        global kafka_producer_service
+        kafka_producer_service = KafkaProducerService()
 
         # Crear tareas para los consumidores de manera que no bloqueen el inicio de uno a otro.
         task2 = asyncio.create_task(kafka_consumer_service.consume_messages(procesar_peticion_entrevista_message))

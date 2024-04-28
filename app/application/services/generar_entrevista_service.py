@@ -41,7 +41,7 @@ class GenerarEntrevistaService:
         text_chunks_con_contexto = text_chunks_hoja_de_vida_con_contexto + text_chunks_informacion_empresa_con_contexto
 
         # Generar el contexto embebido para la conversación
-        conversation_chain = self.generar_modelo_contexto_pdf.sin_memoria(
+        conversation_chain = self.generar_modelo_contexto_pdf.ejecutar(
             text_chunks=text_chunks_con_contexto
         )
 

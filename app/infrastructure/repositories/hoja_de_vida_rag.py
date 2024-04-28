@@ -5,7 +5,8 @@ from app.domain.repositories.hoja_de_vida_rag import HojaDeVidaRepository
 from app.infrastructure.schemas.hoja_de_vida_dto import HojaDeVidaDto
 
 # MongoDB connection URL
-MONGO_URL = "mongodb://root:secret@localhost:27017/"
+MONGO_URL = ("mongodb+srv://entrevistador:swJTdyxG8pJczD0m@clusterentrevistadoria.rtuhiw6.mongodb.net/?retryWrites=true"
+             "&w=majority&appName=ClusterEntrevistadorIA")
 client = AsyncIOMotorClient(MONGO_URL)
 database = client["analizador_hoja_vida_rag"]
 collection = database["hoja_vida"]

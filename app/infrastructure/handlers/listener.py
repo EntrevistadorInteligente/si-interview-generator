@@ -23,7 +23,7 @@ async def procesar_peticion_entrevista_message(
         kafka_producer_service: KafkaProducerService =
         Depends(Provide[Container.kafka_producer_service])):
 
-    data = json.loads(message.value.decode('utf-8'))
+    data = json.loads(message.decode('utf-8'))
     id_entrevista = data.get('id_entrevista')
     preparacion_entrevista_dto = SolicitudGeneracionEntrevistaDto(
         id_entrevista=id_entrevista,
@@ -51,7 +51,7 @@ async def procesar_peticion_feedback_message(
         kafka_producer_service: KafkaProducerService =
         Depends(Provide[Container.kafka_producer_service])):
 
-    data = json.loads(message.value.decode('utf-8'))
+    data = json.loads(message.decode('utf-8'))
 
     hoja_de_vida_dto = await generar_feedback_service.ejecutar(PreguntasDto(**data))
 
