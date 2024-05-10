@@ -1,18 +1,26 @@
+import logging
+
 from aiokafka import AIOKafkaProducer
 import json
-import asyncio
 
 from aiokafka.helpers import create_ssl_context
 
+# Configuración básica del logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 class KafkaProducerService:
-    def __init__(self):
+    def __init__(self, sasl_username, sasl_password, bootstrap_servers):
+        self.sasl_username = sasl_username
+        self.sasl_password = sasl_password
+        self.bootstrap_servers = bootstrap_servers
         self.producer = AIOKafkaProducer(
-            bootstrap_servers='humble-hornet-11005-us1-kafka.upstash.io:9092',
+            bootstrap_servers=self.bootstrap_servers,
             sasl_mechanism='SCRAM-SHA-256',
             security_protocol='SASL_SSL',
-            sasl_plain_username='aHVtYmxlLWhvcm5ldC0xMTAwNSTUkfJrWsksTN7NbzbgNq7Uenqbl39be2_Jad0',
-            sasl_plain_password='M2MxZjg2NzQtNjVmZS00MmMzLWJjMDAtMjIwYTZiYmI0MzYx',
+            sasl_plain_username=self.sasl_username,
+            sasl_plain_password=self.sasl_password,
             ssl_context=create_ssl_context())
 
     async def start(self):
@@ -23,7 +31,10 @@ class KafkaProducerService:
 
     async def send_message(self, message: dict, topic):
         await self.producer.start()
+        logger.info("Enviando mensaje a : topic={}, tamanio message={}".format(
+                topic, message))
         await self.producer.send_and_wait(
             topic,
             json.dumps(message).encode('utf-8')
         )
+        logger.info("Enviado")

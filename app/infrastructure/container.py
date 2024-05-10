@@ -1,4 +1,7 @@
+import os
+
 from dependency_injector import containers, providers
+from dotenv import load_dotenv
 
 from app.application.services.generar_feedback_service import GenerarFeedbackService
 from app.application.services.obtener_contextos_rags_service import ObtenerContextosRags
@@ -12,18 +15,38 @@ from app.infrastructure.repositories.hoja_de_vida_rag import HojaDeVidaMongoRepo
 from app.infrastructure.repositories.informacion_empresa_rag import InformacionEmpresaMongoRepository
 from app.infrastructure.repositories.preparador_entrevista_rag import PreparacionEntrevistaMongoRepository
 
+# Carga las variables de entorno al inicio
+load_dotenv()
+
 
 class Container(containers.DeclarativeContainer):
     # loads all handlers where @injects are set
     wiring_config = containers.WiringConfiguration(modules=Handlers.modules())
     wiring_config2 = containers.WiringConfiguration(modules=Jms.modules())
 
-
-
     # Repositories
-    hoja_de_vida_repository = providers.Singleton(HojaDeVidaMongoRepository)
-    informacion_empresa_repository = providers.Singleton(InformacionEmpresaMongoRepository)
-    preparacion_entrevista_repository = providers.Singleton(PreparacionEntrevistaMongoRepository)
+    # Obtener la URL de MongoDB desde las variables de entorno
+    MONGO_URL = os.getenv('MONGO_URI')
+    sasl_username_kafka = os.getenv('KAFKA_UPSTAR_USER')
+    sasl_password_kafka = os.getenv('KAFKA_UPSTAR_PASSWORD')
+    bootstrap_servers_kafka = os.getenv('KAFKA_UPSTAR_SERVER_URL')
+
+    # MONGO_URI no esté definida
+    if MONGO_URL is None:
+        raise ValueError("MONGO_URI environment variable is not set.")
+
+    hoja_de_vida_repository = providers.Factory(
+        HojaDeVidaMongoRepository,
+        mongo_url=MONGO_URL
+    )
+    informacion_empresa_repository = providers.Factory(
+        InformacionEmpresaMongoRepository,
+        mongo_url=MONGO_URL
+    )
+    preparacion_entrevista_repository = providers.Factory(
+        PreparacionEntrevistaMongoRepository,
+        mongo_url=MONGO_URL
+    )
 
     # Dependencias
     generar_modelo_contexto_pdf = providers.Factory(
@@ -37,6 +60,17 @@ class Container(containers.DeclarativeContainer):
         informacion_empresa_repository=informacion_empresa_repository
     )
 
+    kafka_consumer_service = providers.Singleton(
+        KafkaConsumerService
+    )
+
+    kafka_producer_service = providers.Singleton(
+        KafkaProducerService,
+        sasl_username=sasl_username_kafka,
+        sasl_password=sasl_password_kafka,
+        bootstrap_servers=bootstrap_servers_kafka
+    )
+
     # Servicio que depende de las anteriores
     generar_entrevista_service = providers.Factory(
         GenerarEntrevistaService,
@@ -44,14 +78,16 @@ class Container(containers.DeclarativeContainer):
         generar_modelo_contexto_pdf=generar_modelo_contexto_pdf,
         hoja_de_vida_repository=hoja_de_vida_repository,
         informacion_empresa_repository=informacion_empresa_repository,
-        preparacion_entrevista_repository=preparacion_entrevista_repository
+        preparacion_entrevista_repository=preparacion_entrevista_repository,
+        kafka_producer_service=kafka_producer_service
     )
 
     generar_feedback_service = providers.Factory(
         GenerarFeedbackService,
         obtener_contextos_rags_service=obtener_contextos_rags_service,
         generar_modelo_contexto_pdf=generar_modelo_contexto_pdf,
-        preparacion_entrevista_repository=preparacion_entrevista_repository
+        preparacion_entrevista_repository=preparacion_entrevista_repository,
+        kafka_producer_service=kafka_producer_service
     )
 
     procesar_peticion_entrevista_message = providers.Factory(
@@ -59,10 +95,3 @@ class Container(containers.DeclarativeContainer):
         generar_entrevista_service=generar_entrevista_service
     )
 
-    kafka_consumer_service = providers.Singleton(
-        KafkaConsumerService
-    )
-
-    kafka_producer_service = providers.Singleton(
-        KafkaProducerService
-    )

@@ -1,6 +1,3 @@
-import re
-from typing import List
-
 from app.application.services.obtener_contextos_rags_service import ObtenerContextosRags
 from app.application.services.generar_modelo_contexto_pdf import GenerarModeloContextoPdf
 from app.domain.entities.preparador_entrevista import PreparadorEntrevista, PreparadorEntrevistaFactory
@@ -16,12 +13,14 @@ class GenerarEntrevistaService:
                  generar_modelo_contexto_pdf: GenerarModeloContextoPdf,
                  hoja_de_vida_repository: HojaDeVidaRepository,
                  informacion_empresa_repository: InformacionEmpresaRepository,
-                 preparacion_entrevista_repository: PreparacionEntrevistaRepository) -> str:
+                 preparacion_entrevista_repository: PreparacionEntrevistaRepository,
+                 kafka_producer_service) -> str:
         self.obtener_contextos_rags_service = obtener_contextos_rags_service
         self.generar_modelo_contexto_pdf = generar_modelo_contexto_pdf
         self.hoja_de_vida_rag_repository = hoja_de_vida_repository
         self.informacion_empresa_repository = informacion_empresa_repository
         self.preparacion_entrevista_repository = preparacion_entrevista_repository
+        self.kafka_producer_service = kafka_producer_service
 
     async def ejecutar(self, preparacion_entrevista_dto: SolicitudGeneracionEntrevistaDto) -> list[str]:
 
@@ -46,33 +45,6 @@ class GenerarEntrevistaService:
         )
 
         # Crear el prompt para la simulación de la entrevista con la información clave de la empresa
-        prompt_introduccion = (
-            f"Genera una serie de preguntas técnicas para una entrevista con un candidato que se está postulando "
-            f"para el puesto de {informacion_empresa.perfil}, que requiere {informacion_empresa.seniority} "
-            f"experiencia. La empresa opera en {informacion_empresa.pais} y está buscando alguien para "
-            f"la vacante {informacion_empresa.descripcion_vacante}."
-        )
-
-        # El prompt aquí asume que la información del candidato ya está contenida en los embeddings
-        prompt_entrevista2 = (f"{prompt_introduccion}\n\nLas preguntas deben ser relevantes para el perfil y "
-                             f"la experiencia del candidato. Pero alineados a los requerimientos de la "
-                             f"empresa en la vacante ")
-
-        prompt_entrevista2 = (
-            f"Genera una entrevista técnica en español, completa y desafiante para un candidato con perfil "
-            f"'{informacion_empresa.perfil}' y nivel '{informacion_empresa.seniority}'. La empresa está ubicada en "
-            f"'{informacion_empresa.pais}' y busca llenar la vacante que implica: '{informacion_empresa.descripcion_vacante}'. "
-            f"Separa cada una de las preguntas con una línea de asteriscos y un salto de linea (******) ( no cambies la cantidad"
-            f" ni el formato de sseparacion "
-            f"ya que esto se usa para algo en concreto). Basándote en esta información, crea entre 10 a 20 preguntas "
-            f"que puedan ser respondidas en una ventana de tiempo de entre 30 min a 1 hora y que evalúen el conocimiento técnico en "
-            f"profundidad, la capacidad para resolver problemas complejos, la experiencia en proyectos anteriores, y las habilidades "
-            f"prácticas de programación. Incluye escenarios de depuración de código y análisis de sistemas. Las preguntas deben reflejar "
-            f"situaciones reales y retadoras que el candidato pueda enfrentar en el puesto, incluyendo ejercicios prácticos y teóricos. "
-            f"Las preguntas deben ser relevantes para el perfil y la experiencia del candidato, y alineadas a los requerimientos de la "
-            f"empresa en la vacante."
-        )
-
         prompt_entrevista = (
             f"Genera una entrevista técnica en español para un candidato con perfil "
             f"'{informacion_empresa.perfil}' y nivel '{informacion_empresa.seniority}', ubicado en "
@@ -104,7 +76,12 @@ class GenerarEntrevistaService:
                                                                  text_chunks_con_contexto,
                                                                  response["input"],
                                                                  response["answer"]))
-        return self.separar_preguntas(response['answer'])
+
+        preguntas_formateadas = self.separar_preguntas(response['answer'])
+
+        await self.kafka_producer_service.send_message({
+            "id_entrevista": preparacion_entrevista_dto.id_entrevista,
+            "preguntas": preguntas_formateadas}, 'preguntasListenerTopic')
 
     def separar_preguntas(self, texto, separador="******"):
         # Dividir el texto por el separador
