@@ -36,11 +36,13 @@ def create_app():
                                                       sasl_username_kafka,
                                                       sasl_password_kafka,
                                                       bootstrap_servers_kafka)
+        await kafka_consumer_service.start()
 
         kafka_feedback_consumer_service = KafkaConsumerService('feedbackPublisherTopic',
                                                                sasl_username_kafka,
                                                                sasl_password_kafka,
                                                                bootstrap_servers_kafka)
+        await kafka_feedback_consumer_service.start()
 
         global kafka_producer_service
         kafka_producer_service = KafkaProducerService(sasl_username_kafka,

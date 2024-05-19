@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from aiokafka import AIOKafkaConsumer
 from aiokafka.helpers import create_ssl_context
@@ -9,12 +11,13 @@ logger = logging.getLogger(__name__)
 
 
 class KafkaConsumerService:
-    def __init__(self, topic, sasl_username, sasl_password, bootstrap_servers):
+    def __init__(self, topic, sasl_username, sasl_password, bootstrap_servers, max_workers=10):
         self.topic = topic
         self.sasl_username = sasl_username
         self.sasl_password = sasl_password
         self.bootstrap_servers = bootstrap_servers
         self.consumer = self.create_consumer()
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
     def create_consumer(self):
         return AIOKafkaConsumer(self.topic,
@@ -23,18 +26,32 @@ class KafkaConsumerService:
                                 security_protocol='SASL_SSL',
                                 sasl_plain_username=self.sasl_username,
                                 sasl_plain_password=self.sasl_password,
-                                auto_offset_reset='earliest',
+                                auto_offset_reset='latest',
+                                group_id='preparador',
                                 ssl_context=create_ssl_context())
 
-    async def consume_messages(self, callback):
+    async def start(self):
         await self.consumer.start()
+
+    async def consume_messages(self, callback):
         try:
             async for msg in self.consumer:
                 logger.info("Recibiendo mensaje : {}:{:d}:{:d}: key={} value={} timestamp_ms={}".format(
                     msg.topic, msg.partition, msg.offset, msg.key, msg.value, msg.timestamp))
-                await callback(msg.value)
+                # Envía el mensaje a un hilo para procesamiento
+                self.executor.submit(self.process_message, msg.value, callback)
         finally:
             logger.info("Cerrando")
             await self.consumer.stop()
+
+    def process_message(self, message, callback):
+        """Función que se ejecuta en el hilo, con su propio event loop."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(callback(message))
+            return result
+        finally:
+            loop.close()
 
 

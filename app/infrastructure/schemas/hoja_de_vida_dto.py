@@ -56,15 +56,24 @@ class EntrevistaDto(BaseModel):
     preguntas: List[str] = []
 
 
-class EntrevistaFeedbackDto(BaseModel):
-    pregunta: Optional[str] = None
+class RespuestaComentarioDto(BaseModel):
+    id_pregunta: Optional[str] = None
     respuesta: Optional[str] = None
-    feedback: Optional[str] = None
 
 
 class PreguntasDto(BaseModel):
     id_entrevista: Optional[str] = None
-    proceso_entrevista: List[EntrevistaFeedbackDto] = []
+    proceso_entrevista: List[RespuestaComentarioDto] = []
+
+
+class FeedbackComentarioDto(BaseModel):
+    id_pregunta: Optional[str] = None
+    feedback: Optional[str] = None
+
+
+class FeedbackDto(BaseModel):
+    id_entrevista: Optional[str] = None
+    proceso_entrevista: List[FeedbackComentarioDto] = []
 
 
 
