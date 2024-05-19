@@ -60,11 +60,11 @@ class Container(containers.DeclarativeContainer):
         informacion_empresa_repository=informacion_empresa_repository
     )
 
-    kafka_consumer_service = providers.Singleton(
+    kafka_consumer_service = providers.Factory(
         KafkaConsumerService
     )
 
-    kafka_producer_service = providers.Singleton(
+    kafka_producer_service = providers.Factory(
         KafkaProducerService,
         sasl_username=sasl_username_kafka,
         sasl_password=sasl_password_kafka,

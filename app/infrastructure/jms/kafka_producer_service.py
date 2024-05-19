@@ -15,26 +15,30 @@ class KafkaProducerService:
         self.sasl_username = sasl_username
         self.sasl_password = sasl_password
         self.bootstrap_servers = bootstrap_servers
-        self.producer = AIOKafkaProducer(
-            bootstrap_servers=self.bootstrap_servers,
-            sasl_mechanism='SCRAM-SHA-256',
-            security_protocol='SASL_SSL',
-            sasl_plain_username=self.sasl_username,
-            sasl_plain_password=self.sasl_password,
-            ssl_context=create_ssl_context())
+        self.producer = None
 
     async def start(self):
-        await self.producer.start()
+        if not self.producer:
+            self.producer = AIOKafkaProducer(
+                bootstrap_servers=self.bootstrap_servers,
+                sasl_mechanism='SCRAM-SHA-256',
+                security_protocol='SASL_SSL',
+                sasl_plain_username=self.sasl_username,
+                sasl_plain_password=self.sasl_password,
+                ssl_context=create_ssl_context())
+            await self.producer.start()
 
     async def stop(self):
-        await self.producer.stop()
+        if self.producer:
+            await self.producer.stop()
+            self.producer = None
 
     async def send_message(self, message: dict, topic):
-        await self.producer.start()
-        logger.info("Enviando mensaje a : topic={}, tamanio message={}".format(
-                topic, message))
+        if not self.producer:
+            await self.start()
+        logger.info(f"Enviando mensaje a: topic={topic}, tamaño message={len(json.dumps(message))}")
         await self.producer.send_and_wait(
             topic,
             json.dumps(message).encode('utf-8')
         )
-        logger.info("Enviado")
+        logger.info("Mensaje enviado")
