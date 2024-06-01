@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from app.application.services.generar_feedback_service import GenerarFeedbackService
 from app.application.services.obtener_contextos_rags_service import ObtenerContextosRags
-from app.application.services.generar_modelo_contexto_pdf import GenerarModeloContextoPdf
+from app.application.services.generar_modelo_service import GenerarModeloContextoPdf
 from app.infrastructure.jms.kafka_consumer_service import KafkaConsumerService
 from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.application.services.generar_entrevista_service import GenerarEntrevistaService
@@ -14,6 +14,7 @@ from app.infrastructure.jms import Jms
 from app.infrastructure.repositories.hoja_de_vida_rag import HojaDeVidaMongoRepository
 from app.infrastructure.repositories.informacion_empresa_rag import InformacionEmpresaMongoRepository
 from app.infrastructure.repositories.preparador_entrevista_rag import PreparacionEntrevistaMongoRepository
+from app.infrastructure.repositories.worker_manager import WorkerManagerRepository
 
 # Carga las variables de entorno al inicio
 load_dotenv()
@@ -43,13 +44,17 @@ class Container(containers.DeclarativeContainer):
         InformacionEmpresaMongoRepository,
         mongo_url=MONGO_URL
     )
+    worker_manager_repository = providers.Factory(
+        WorkerManagerRepository,
+        mongo_url=MONGO_URL
+    )
     preparacion_entrevista_repository = providers.Factory(
         PreparacionEntrevistaMongoRepository,
         mongo_url=MONGO_URL
     )
 
     # Dependencias
-    generar_modelo_contexto_pdf = providers.Factory(
+    generar_modelo_servicio = providers.Factory(
         GenerarModeloContextoPdf,
         preparacion_entrevista_repository=preparacion_entrevista_repository)
 
@@ -75,19 +80,21 @@ class Container(containers.DeclarativeContainer):
     generar_entrevista_service = providers.Factory(
         GenerarEntrevistaService,
         obtener_contextos_rags_service=obtener_contextos_rags_service,
-        generar_modelo_contexto_pdf=generar_modelo_contexto_pdf,
+        generar_modelo_servicio=generar_modelo_servicio,
         hoja_de_vida_repository=hoja_de_vida_repository,
         informacion_empresa_repository=informacion_empresa_repository,
         preparacion_entrevista_repository=preparacion_entrevista_repository,
-        kafka_producer_service=kafka_producer_service
+        kafka_producer_service=kafka_producer_service,
+        worker_manager_repository=worker_manager_repository
     )
 
     generar_feedback_service = providers.Factory(
         GenerarFeedbackService,
         obtener_contextos_rags_service=obtener_contextos_rags_service,
-        generar_modelo_contexto_pdf=generar_modelo_contexto_pdf,
+        generar_modelo_servicio=generar_modelo_servicio,
         preparacion_entrevista_repository=preparacion_entrevista_repository,
-        kafka_producer_service=kafka_producer_service
+        kafka_producer_service=kafka_producer_service,
+        worker_manager_repository=worker_manager_repository
     )
 
     procesar_peticion_entrevista_message = providers.Factory(

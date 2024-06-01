@@ -1,7 +1,3 @@
-from typing import Any
-
-from langchain_core.documents import Document
-
 from app.domain.exceptions import PriceIsLessThanOrEqualToZero
 
 
