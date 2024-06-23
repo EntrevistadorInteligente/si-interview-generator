@@ -20,14 +20,15 @@ class GenerarModeloContextoPdf:
 
     def ejecutar(self, text_chunks: list[str], worker: Worker,
                  qa_system_prompt,
-                 contextualize_q_system_prompt) -> Any:
+                 contextualize_q_system_prompt,
+                 model_name) -> Any:
         dotenv.load_dotenv()
         # Crear vectorstore
         vectorstore = FAISS.from_texts(texts=text_chunks, embedding=OpenAIEmbeddings())
 
         if worker is not None:
             # Use ChatGroq if worker is available
-            llm = ChatGroq(temperature=0, groq_api_key=worker.api_id, model_name="llama3-8b-8192")
+            llm = ChatGroq(temperature=0, groq_api_key=worker.api_id, model_name=model_name)
         else:
             # Use OpenAI if no worker is available
             llm = ChatOpenAI(temperature=0)

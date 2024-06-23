@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional, Any
 
 from pydantic import BaseModel, Field, validator
@@ -102,6 +103,10 @@ class Worker(BaseModel):
     requests_made: int
     status: str
     api_id: str
+    last_used: Optional[datetime] = None
+    requests_made_minute: int = 0
+    tokens_made_minute: int = 0
+
 
 
 

@@ -77,6 +77,7 @@ class GenerarEntrevistaService:
             'chat_history': [],
             "input": prompt_entrevista
         })
+
         return response
 
     async def generar_modelo_entrevista(self, text_chunks_con_contexto, worker):
@@ -92,7 +93,7 @@ class GenerarEntrevistaService:
           solo formula las preguntas más perspicaces y relevantes que se te ocurran.
           """
         qa_system_prompt = """Eres un experto en entrevistas laborales y tu tarea es responder en formato JSON. Genera 
-        un conjunto de 20 preguntas  en ESPAÑOL que podrían ser utilizadas en una entrevista real para evaluar a un candidato para 
+        un conjunto de entre 5 a 7 preguntas (segun lo veas pertinente) en ESPAÑOL que podrían ser utilizadas en una entrevista real para evaluar a un candidato para 
         un puesto de trabajo. Las preguntas deben estar formuladas en español y abarcar diversos aspectos del perfil 
         profesional del candidato, como habilidades técnicas, experiencia, resolución de problemas y características personales.
         Cada pregunta debe estar contenida en un campo llamado 'question' dentro de un objeto JSON. Asegúrate de que 
@@ -104,7 +105,8 @@ class GenerarEntrevistaService:
         conversation_chain = self.generar_modelo_servicio.ejecutar(
             text_chunks=text_chunks_con_contexto, worker=worker,
             qa_system_prompt=qa_system_prompt,
-            contextualize_q_system_prompt=contextualize_q_system_prompt
+            contextualize_q_system_prompt=contextualize_q_system_prompt,
+            model_name="llama3-70b-8192"
         )
         return conversation_chain
 
