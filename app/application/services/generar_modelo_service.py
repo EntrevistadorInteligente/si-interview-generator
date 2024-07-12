@@ -3,6 +3,7 @@ from typing import Any, List
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.chains.retrieval import create_retrieval_chain
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -31,7 +32,8 @@ class GenerarModeloContextoPdf:
             llm = ChatGroq(temperature=0, groq_api_key=worker.api_id, model_name=model_name)
         else:
             # Use OpenAI if no worker is available
-            llm = ChatOpenAI(temperature=0)
+            #llm = ChatOpenAI(temperature=0)
+            llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 
         retriever = vectorstore.as_retriever()
 

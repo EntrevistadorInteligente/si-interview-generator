@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from aiokafka.helpers import create_ssl_context
 from aiokafka.errors import KafkaConnectionError, CommitFailedError
 
@@ -21,6 +21,7 @@ class KafkaConsumerService:
         self.bootstrap_servers = bootstrap_servers
         self.consumer = self.create_consumer()
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.semaphore = asyncio.Semaphore(max_workers)
         self.running = True
         self.tasks = []
 
@@ -32,8 +33,8 @@ class KafkaConsumerService:
             security_protocol='SASL_SSL',
             sasl_plain_username=self.sasl_username,
             sasl_plain_password=self.sasl_password,
-            auto_offset_reset='latest',
-            group_id='preparador',
+            auto_offset_reset='lastest',
+            group_id='preparador',  # Asegúrate de que este group_id sea el mismo para todos los consumidores
             ssl_context=create_ssl_context(),
             session_timeout_ms=30000,  # 30 segundos
             heartbeat_interval_ms=10000,  # 10 segundos
@@ -41,40 +42,44 @@ class KafkaConsumerService:
         )
 
     async def start(self):
-        await self.consumer.start()
+        if self.consumer:
+            try:
+                await self.consumer.start()
+                logger.info("Kafka consumer started")
+            except Exception as e:
+                logger.error(f"Failed to start Kafka consumer: {e}")
 
     async def consume_messages(self, callback):
         retries = 0
         while retries < MAX_RETRIES and self.running:
             try:
                 if not self.consumer:
+                    self.consumer = self.create_consumer()
                     await self.start()
                 async for msg in self.consumer:
                     if not self.running:
                         break
-                    logger.info("Recibiendo mensaje: {}:{:d}:{:d}: key={} value={} timestamp_ms={}".format(
-                        msg.topic, msg.partition, msg.offset, msg.key, msg.value, msg.timestamp))
+                    await self.semaphore.acquire()
+                    logger.info("Recibiendo mensaje: {}:{:d}:{:d}: key={} timestamp_ms={}".format(
+                        msg.topic, msg.partition, msg.offset, msg.key, msg.timestamp))
                     # Envía el mensaje a un hilo para procesamiento
-                    task = self.executor.submit(self.process_message, msg.value, callback)
+                    task = self.executor.submit(self.process_message, msg, callback)
+                    task.add_done_callback(lambda t: self.semaphore.release())
                     self.tasks.append(task)
-                # Si llegamos aquí, significa que el consumidor se ha cerrado correctamente
-                break
             except KafkaConnectionError as e:
                 logger.error(f"Error de conexión: {e}. Reintentando en {RETRY_DELAY * (2 ** retries)} segundos...")
                 await asyncio.sleep(RETRY_DELAY * (2 ** retries))  # Espera exponencial
                 retries += 1
-                self.consumer = self.create_consumer()
-                await self.start()
             except CommitFailedError as e:
                 logger.error(f"Commit fallido: {e}. Esto puede suceder durante una re-asignación del grupo.")
             except Exception as e:
                 logger.error(f"Error inesperado: {e}. Reintentando en {RETRY_DELAY * (2 ** retries)} segundos...")
                 await asyncio.sleep(RETRY_DELAY * (2 ** retries))  # Espera exponencial
                 retries += 1
-                self.consumer = self.create_consumer()
-                await self.start()
             finally:
-                await self.consumer.stop()
+                if self.consumer:
+                    await self.consumer.stop()
+                    self.consumer = None
         if retries >= MAX_RETRIES:
             logger.error("Número máximo de reintentos alcanzado. Deteniendo consumidor.")
         else:
@@ -82,7 +87,8 @@ class KafkaConsumerService:
 
     async def stop(self):
         self.running = False
-        await self.consumer.stop()
+        if self.consumer:
+            await self.consumer.stop()
         self.executor.shutdown(wait=True)
         # Cancelar todas las tareas pendientes
         for task in self.tasks:
@@ -90,12 +96,12 @@ class KafkaConsumerService:
         await asyncio.gather(*self.tasks, return_exceptions=True)
         self.tasks.clear()
 
-    def process_message(self, message, callback):
+    def process_message(self, msg, callback):
         """Función que se ejecuta en el hilo, con su propio event loop."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(callback(message))
+            result = loop.run_until_complete(callback(msg.value))
             return result
         finally:
             loop.close()

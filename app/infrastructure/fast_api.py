@@ -1,8 +1,7 @@
 import asyncio
 import os
-
-from dotenv import load_dotenv
 from fastapi import FastAPI
+from dotenv import load_dotenv
 from app.infrastructure.jms.kafka_consumer_service import KafkaConsumerService
 from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.infrastructure.container import Container
@@ -24,7 +23,8 @@ def create_app():
     async def shutdown_event():
         global kafka_producer_service
         if kafka_producer_service:
-            await asyncio.create_task(kafka_producer_service.stop())
+            await kafka_producer_service.stop()
+            print("Kafka producer service stopped")
 
     @fast_api.on_event("startup")
     async def startup_event():
@@ -36,13 +36,10 @@ def create_app():
                                                       sasl_username_kafka,
                                                       sasl_password_kafka,
                                                       bootstrap_servers_kafka)
-        await kafka_consumer_service.start()
-
         kafka_feedback_consumer_service = KafkaConsumerService('feedbackPublisherTopic',
                                                                sasl_username_kafka,
                                                                sasl_password_kafka,
                                                                bootstrap_servers_kafka)
-        await kafka_feedback_consumer_service.start()
 
         global kafka_producer_service
         kafka_producer_service = KafkaProducerService(sasl_username_kafka,
@@ -50,13 +47,17 @@ def create_app():
                                                       bootstrap_servers_kafka)
 
         await kafka_producer_service.start()
+        print("Kafka producer service started")
 
-        # Crear tareas para los consumidores de manera que no bloqueen el inicio de uno a otro.
-        task2 = asyncio.create_task(kafka_consumer_service.consume_messages(procesar_peticion_entrevista_message))
-        task1 = asyncio.create_task(kafka_feedback_consumer_service.
-                                    consume_messages(procesar_peticion_feedback_message))
+        # Iniciar consumidores de Kafka en tareas asincrónicas separadas
+        asyncio.create_task(kafka_consumer_service.start())
+        asyncio.create_task(kafka_feedback_consumer_service.start())
+        asyncio.create_task(kafka_consumer_service.consume_messages(procesar_peticion_entrevista_message))
+        asyncio.create_task(kafka_feedback_consumer_service.consume_messages(procesar_peticion_feedback_message))
 
-        # Opcional: Esperar a que ambas tareas estén corriendo
-        await asyncio.gather(task1, task2)
+        print("Kafka consumer services started")
 
     return fast_api
+
+
+application = create_app()
