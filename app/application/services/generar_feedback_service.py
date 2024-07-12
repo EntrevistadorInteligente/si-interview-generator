@@ -11,7 +11,7 @@ from app.domain.repositories.worker_manager import WorkerManagerRepository
 from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.infrastructure.schemas.hoja_de_vida_dto import PreguntasDto, FeedbackComentarioDto, FeedbackDto, Worker
 
-CANTIDAD_PREGUNTAS_OPENIA = 5
+CANTIDAD_PREGUNTAS_OPENIA = 4
 
 CANTIDAD_PREGUNTAS_GROQ = 2
 
@@ -66,12 +66,13 @@ class GenerarFeedbackService:
         todos los campos, incluso si el texto de entrada no especifica todos los detalles claramente. El formato de salida esperado es un array de 
         objetos JSON, donde cada objeto tiene un único campo 'feedback' y otro como 'score'.
                 {context}"""
-        ##worker = await self.worker_manager_repository.get_available_worker(total_respuestas)
+
         conversation_chain = (self.generar_modelo_servicio
                               .ejecutar(text_chunks=memoria_entrevista.contexto,
                                         worker=worker,
                                         qa_system_prompt=qa_system_prompt,
-                                        contextualize_q_system_prompt=contextualize_q_system_prompt))
+                                        contextualize_q_system_prompt=contextualize_q_system_prompt,
+                                        model_name="llama3-8b-8192"))
         return conversation_chain
 
     async def generar_feedback_entrevista(self, conversation_chain, memoria_entrevista, preguntas,
@@ -101,29 +102,18 @@ class GenerarFeedbackService:
             proceso_entrevista=feedback_total)
 
     def construir_prompt_feedback(self, respuestas, inicio_bloque):
-        prompt = ("Genera feedback AMPLIO, constructivo y sincero para cada respuesta del candidato, debes evaluar su "
-                  "contenido y ofrecer comentarios que resalten las fortalezas, "
-                  "señalen las debilidades y propongan áreas para la mejora profesional. Este feedback debe ser útil para el candidato "
-                  "y proporcionar una guía clara para su desarrollo profesional. para cada feedback un score del 1 al 10."
-                  """ Ejemplo de estructura de salida esperada:
+        prompt = ("Genera feedback en ESPAÑOL AMPLIO, constructivo y sincero para cada respuesta del candidato (NO SEAS COMPLACIENTE), "
+                  "ofrece comentarios que resalten las fortalezas, señalen las debilidades y propongan áreas para la mejora profesional. "
+                  "Asigna un score del 1 al 10 segun cosideres la calidad de la respuesta"
+                  """FORMATO de estructura de salida QUE DEBES ENTREGAR. JSON con LOS CAMPOS OBLIGATORIOS:
               [
                   {
                   "feedback": "aqui podras tu feedback AMPLIO (NO scores AQUI, solo FEEDBACK)",
                   "score": "(1 al 10)"
-                  },
-                  {
-                  "feedback": "aqui podras tu feedback AMPLIO (NO scores AQUI, solo FEEDBACK)",
-                  "score": "(1 al 10)"
-                  },
-                  ...
-                  {
-                  "feedback": "aqui podras tu feedback AMPLIO (NO scores AQUI, solo FEEDBACK)",
-                  "score": "(1 al 10)"
-                  },
+                  }
               ] """
-                  "A continuación, se te proporcionan las respuestas del candidato. "
-                  "Genera el feedback en el formato JSON especificado para cada respuesta."
-                  " Feddback en el feddbakc y score en el score IMPORTANTE. Respetar el formato\n\n"
+                  "A continuación, se te proporcionan las respuestas del candidato."
+                  "Feedback en el feedback y score en el score IMPORTANTE. Respetar el formato\n\n"
                   )
         # Agregar respuestas
         for num, proceso in enumerate(respuestas, inicio_bloque + 1):  # Ajustar el número de pregunta correctamente

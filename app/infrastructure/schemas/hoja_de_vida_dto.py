@@ -1,4 +1,5 @@
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Optional, Any
 
 from pydantic import BaseModel, Field, validator
 from bson import ObjectId
@@ -16,7 +17,7 @@ class InformacionEmpresaDto(BaseModel):
     perfil: Optional[str] = None
     seniority: Optional[str] = None
     pais: Optional[str] = None
-    informacion_empresa_vect: Optional[list[str]] = None
+    informacion_empresa_vect: Optional[list[Any]] = None
 
 
 class InformacionEmpresaSolicitudDto(BaseModel):
@@ -102,6 +103,10 @@ class Worker(BaseModel):
     requests_made: int
     status: str
     api_id: str
+    last_used: Optional[datetime] = None
+    requests_made_minute: int = 0
+    tokens_made_minute: int = 0
+
 
 
 

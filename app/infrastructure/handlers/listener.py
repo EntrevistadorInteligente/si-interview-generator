@@ -30,7 +30,7 @@ async def procesar_peticion_entrevista_message(
     worker = None
     try:
         data = json.loads(message.decode('utf-8'))
-        worker = await worker_manager_repository.get_available_worker(1)
+        worker = await worker_manager_repository.get_available_worker(1, 5000)
         preparacion_entrevista_dto = SolicitudGeneracionEntrevistaDto(
             id_entrevista=data.get('id_entrevista'),
             id_hoja_de_vida=data.get('id_hoja_de_vida'),
@@ -47,7 +47,7 @@ async def procesar_peticion_entrevista_message(
         logger.error(f"Error inesperado durante el procesamiento de la entrevista: {e}")
     finally:
         if worker:
-            await worker_manager_repository.release_worker(worker, 1)
+            await worker_manager_repository.release_worker(worker, 1, 5001)
 
 
 @router.get('/2', response_model=str)
@@ -62,7 +62,7 @@ async def procesar_peticion_feedback_message(
         data = json.loads(message.decode('utf-8'))
         preguntas = PreguntasDto(**data)
         total_respuestas = len(preguntas.proceso_entrevista)
-        worker = await worker_manager_repository.get_available_worker(total_respuestas)
+        worker = await worker_manager_repository.get_available_worker(total_respuestas, 10000)
         await generar_feedback_service.ejecutar(PreguntasDto(**data), worker)
         logger.info(f"Procesamiento de feedback completado para la entrevista ID {data.get('id_entrevista')}.")
     except json.JSONDecodeError as e:
@@ -71,7 +71,7 @@ async def procesar_peticion_feedback_message(
         logger.error(f"Error inesperado durante el procesamiento de el feedback: {e}")
     finally:
         if worker:
-            await worker_manager_repository.release_worker(worker, total_respuestas)
+            await worker_manager_repository.release_worker(worker, total_respuestas, 10001)
 
 
 
