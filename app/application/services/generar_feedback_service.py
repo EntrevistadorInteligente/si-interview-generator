@@ -121,8 +121,8 @@ class GenerarFeedbackService:
             "A continuación, se te proporcionan las respuestas del candidato. Evalúa cada una críticamente:\n\n"
         )
         for num, proceso in enumerate(respuestas, inicio_bloque + 1):
-            prompt += f"Pregunta {num}: {proceso.pregunta}\n"
-            prompt += f"Respuesta del candidato: {proceso.respuesta}\n**Evaluación:**\n\n"
+
+            prompt += f"Respuesta del candidato a la pregunta # {num}: {proceso.respuesta}\n**Evaluación:**\n\n"
 
         return prompt
 
