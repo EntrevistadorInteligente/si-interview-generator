@@ -33,8 +33,8 @@ class KafkaConsumerService:
             security_protocol='SASL_SSL',
             sasl_plain_username=self.sasl_username,
             sasl_plain_password=self.sasl_password,
-            auto_offset_reset='lastest',
-            group_id='preparador',  # Asegúrate de que este group_id sea el mismo para todos los consumidores
+            auto_offset_reset='latest',
+            group_id='preparador',
             ssl_context=create_ssl_context(),
             session_timeout_ms=30000,  # 30 segundos
             heartbeat_interval_ms=10000,  # 10 segundos
