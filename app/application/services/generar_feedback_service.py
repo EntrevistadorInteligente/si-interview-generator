@@ -1,5 +1,8 @@
 import math
 import time
+import re
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from openai import RateLimitError
 
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -12,9 +15,7 @@ from app.infrastructure.jms.kafka_producer_service import KafkaProducerService
 from app.infrastructure.schemas.hoja_de_vida_dto import PreguntasDto, FeedbackComentarioDto, FeedbackDto, Worker
 
 CANTIDAD_PREGUNTAS_OPENIA = 4
-
 CANTIDAD_PREGUNTAS_GROQ = 2
-
 
 class GenerarFeedbackService:
 
@@ -32,17 +33,13 @@ class GenerarFeedbackService:
     async def ejecutar(self, preguntas: PreguntasDto, worker: Worker):
         inicio = time.time()
 
-        # Recuperar el contexto de la entrevista
         memoria_entrevista = await self.preparacion_entrevista_repository.obtener_por_id(preguntas.id_entrevista)
 
         conversation_chain = await self.generar_modelo_feedback(memoria_entrevista, worker)
 
         total_respuestas = len(preguntas.proceso_entrevista)
 
-        if(worker is not None):
-            es_instancia_groq = True
-        else:
-            es_instancia_groq = False
+        es_instancia_groq = worker is not None
 
         feedback_dto = await self.generar_feedback_entrevista(conversation_chain, memoria_entrevista, preguntas,
                                                               total_respuestas, es_instancia_groq)
@@ -92,8 +89,7 @@ class GenerarFeedbackService:
             respuestas_bloque = preguntas.proceso_entrevista[inicio_bloque:fin_bloque]
 
             feedback_prompt = self.construir_prompt_feedback(respuestas_bloque, inicio_bloque)
-            feedback_response = conversation_chain.invoke({'chat_history': chat_history,
-                                                           "input": feedback_prompt})
+            feedback_response = self.invoke_with_retry(conversation_chain, chat_history, feedback_prompt)
             feedback_comentarios = self.procesar_respuesta(respuestas_bloque, feedback_response['answer'])
 
             feedback_total.extend(feedback_comentarios)
@@ -102,32 +98,38 @@ class GenerarFeedbackService:
             proceso_entrevista=feedback_total)
 
     def construir_prompt_feedback(self, respuestas, inicio_bloque):
-        prompt = ("Genera feedback en ESPAÑOL AMPLIO, constructivo y sincero para cada respuesta del candidato (NO SEAS COMPLACIENTE), "
-                  "ofrece comentarios que resalten las fortalezas, señalen las debilidades y propongan áreas para la mejora profesional. "
-                  "Asigna un score del 1 al 10 segun cosideres la calidad de la respuesta"
-                  """FORMATO de estructura de salida QUE DEBES ENTREGAR. JSON con LOS CAMPOS OBLIGATORIOS:
-              [
-                  {
-                  "feedback": "aqui podras tu feedback AMPLIO (NO scores AQUI, solo FEEDBACK)",
-                  "score": "(1 al 10)"
-                  }
-              ] """
-                  "A continuación, se te proporcionan las respuestas del candidato."
-                  "Feedback en el feedback y score en el score IMPORTANTE. Respetar el formato\n\n"
-                  )
-        # Agregar respuestas
-        for num, proceso in enumerate(respuestas, inicio_bloque + 1):  # Ajustar el número de pregunta correctamente
-            prompt += f"Respuesta del candidato a la pregunta {num}: {proceso.respuesta}\n**Feedback:**\n"
+        prompt = (
+            "Eres un evaluador experto en entrevistas de trabajo. Tu tarea es proporcionar feedback CRÍTICO y HONESTO "
+            "en ESPAÑOL para cada respuesta del candidato. NO seas complaciente. Evalúa la calidad y relevancia de cada respuesta. "
+            "Si la respuesta no tiene sentido o no es relevante, debes señalarlo claramente y asignar una puntuación baja. "
+            "Ofrece comentarios que resalten las fortalezas reales, señalen las debilidades concretas y propongan áreas específicas para la mejora profesional. "
+            "Asigna un score del 1 al 10 basado ESTRICTAMENTE en la calidad y relevancia de la respuesta:\n"
+            "1-3: Respuesta sin sentido o completamente irrelevante\n"
+            "4-5: Respuesta pobre o mayormente irrelevante\n"
+            "6-7: Respuesta aceptable pero con áreas significativas de mejora\n"
+            "8-9: Buena respuesta con pequeñas áreas de mejora\n"
+            "10: Respuesta excelente y completa\n\n"
+            "FORMATO de estructura de salida QUE DEBES ENTREGAR. JSON con LOS CAMPOS OBLIGATORIOS:\n"
+            "[\n"
+            "    {\n"
+            "    \"feedback\": \"Aquí tu feedback DETALLADO y CRÍTICO (NO scores AQUI, solo FEEDBACK)\",\n"
+            "    \"score\": \"(1 al 10 justificado)\"\n"
+            "    }\n"
+            "]\n"
+            "IMPORTANTE: Si la respuesta no tiene sentido o es claramente irrelevante, asigna un score bajo (1-3) "
+            "y explica en el feedback por qué la respuesta no es adecuada.\n\n"
+            "A continuación, se te proporcionan las respuestas del candidato. Evalúa cada una críticamente:\n\n"
+        )
+        for num, proceso in enumerate(respuestas, inicio_bloque + 1):
+            prompt += f"Pregunta {num}: {proceso.pregunta}\n"
+            prompt += f"Respuesta del candidato: {proceso.respuesta}\n**Evaluación:**\n\n"
 
         return prompt
 
     def procesar_respuesta(self, respuestas_bloque, feedback_response):
-
         array_data = ExtractorRespuestasIa.extract_array(feedback_response)
-        # Encuentra las preguntas dentro del array extraído
         preguntas_formateadas = ExtractorRespuestasIa.find_keys(array_data, ['feedback', 'score'])
 
-        # Crear una lista de FeedbackComentarioDto combinando los IDs y feedbacks
         min_length = min(len(respuestas_bloque), len(preguntas_formateadas))
         feedback_comentarios = [
             FeedbackComentarioDto(id_pregunta=respuestas_bloque[i].id_pregunta,
@@ -138,4 +140,21 @@ class GenerarFeedbackService:
 
         return feedback_comentarios
 
+    @retry(stop=stop_after_attempt(5),
+           wait=wait_exponential(multiplier=1, min=4, max=60),
+           retry=retry_if_exception_type(RateLimitError))
+    def invoke_with_retry(self, conversation_chain, chat_history, feedback_prompt):
+        try:
+            return conversation_chain.invoke({'chat_history': chat_history, "input": feedback_prompt})
+        except RateLimitError as e:
+            retry_after = self.extract_retry_after(str(e))
+            retry_after += 30
+            print(f"Rate limit reached. Retrying after {retry_after} seconds.")
+            time.sleep(retry_after)
+            raise e  # Re-raise the exception to trigger the retry
 
+    def extract_retry_after(self, error_message):
+        match = re.search(r'Please try again in (\d+\.\d+)s', error_message)
+        if match:
+            return float(match.group(1))
+        return 1
