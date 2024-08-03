@@ -25,7 +25,7 @@ class GenerarModeloContextoPdf:
                  model_name) -> Any:
         dotenv.load_dotenv()
         # Crear vectorstore
-        vectorstore = FAISS.from_texts(texts=text_chunks, embedding=OpenAIEmbeddings())
+        vectorstore = FAISS.from_texts(texts=text_chunks, embedding=OpenAIEmbeddings(model="text-embedding-3-small"))
 
         if worker is not None:
             # Use ChatGroq if worker is available
