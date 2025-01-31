@@ -3,7 +3,7 @@ streamlit==1.30.0
 faiss-cpu==1.8.0
 altair==4
 tiktoken>=0.6.0
-dependency-injector==4.41.0
+dependency-injector
 huggingface-hub==0.14.1
 python-multipart==0.0.7
 fastapi~=0.109.0

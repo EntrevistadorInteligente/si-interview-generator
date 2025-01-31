@@ -30,7 +30,7 @@ def create_app():
     async def startup_event():
         sasl_username_kafka = os.getenv('KAFKA_UPSTAR_USER')
         sasl_password_kafka = os.getenv('KAFKA_UPSTAR_PASSWORD')
-        bootstrap_servers_kafka = os.getenv('KAFKA_UPSTAR_SERVER_URL')
+        bootstrap_servers_kafka = os.getenv('KAFKA_SERVER')
 
         kafka_consumer_service = KafkaConsumerService('generadorPublisherTopic',
                                                       sasl_username_kafka,

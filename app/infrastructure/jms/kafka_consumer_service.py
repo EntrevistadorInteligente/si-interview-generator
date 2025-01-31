@@ -29,13 +29,8 @@ class KafkaConsumerService:
         return AIOKafkaConsumer(
             self.topic,
             bootstrap_servers=self.bootstrap_servers,
-            sasl_mechanism='SCRAM-SHA-256',
-            security_protocol='SASL_SSL',
-            sasl_plain_username=self.sasl_username,
-            sasl_plain_password=self.sasl_password,
             auto_offset_reset='latest',
             group_id='preparador',
-            ssl_context=create_ssl_context(),
             session_timeout_ms=30000,  # 30 segundos
             heartbeat_interval_ms=10000,  # 10 segundos
             max_poll_interval_ms=300000  # 5 minutos
