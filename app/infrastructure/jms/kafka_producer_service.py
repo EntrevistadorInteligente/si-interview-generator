@@ -20,7 +20,7 @@ class KafkaProducerService:
     async def start(self):
         if not self.producer:
             self.producer = AIOKafkaProducer(
-                bootstrap_servers="localhost:9092")
+                bootstrap_servers="kafka:29092")
             await self.producer.start()
 
     async def stop(self):

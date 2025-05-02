@@ -62,7 +62,7 @@ async def procesar_peticion_feedback_message(
         data = json.loads(message.decode('utf-8'))
         preguntas = PreguntasDto(**data)
         total_respuestas = len(preguntas.proceso_entrevista)
-        worker = await worker_manager_repository.get_available_worker(total_respuestas, 10000)
+        worker #= await worker_manager_repository.get_available_worker(total_respuestas, 10000)
         await generar_feedback_service.ejecutar(PreguntasDto(**data), worker)
         logger.info(f"Procesamiento de feedback completado para la entrevista ID {data.get('id_entrevista')}.")
     except json.JSONDecodeError as e:
